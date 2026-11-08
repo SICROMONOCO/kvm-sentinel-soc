@@ -3,8 +3,9 @@
 Sends the structured incident (plus a handful of raw log lines) to a small
 CPU-only model and asks for a strict JSON verdict. The model is qwen2.5:0.5b by
 default: it fits comfortably in the 5 GiB VM and answers in a few seconds on 4
-vCPUs once warm. Alerts use a hard 25 s cap so a hung model can never stall a
-live demo; the one-off cold start is paid by warm_up() at container start.
+vCPUs once warm. Alerts use a hard 120 s cap, sized for CPU-only generation with
+the full evidence prompt, so a hung model cannot stall a live demo; the one-off
+cold start is paid by warm_up() at container start.
 
 The LLM is treated as untrusted input:
   * the response is parsed defensively (prose/fences tolerated, first balanced
@@ -105,7 +106,7 @@ def sanitize_text(value: str, limit: int) -> str:
 
 
 class AgentAnalyste:
-    def __init__(self, ollama_url: str, model: str, timeout_seconds: int = 25) -> None:
+    def __init__(self, ollama_url: str, model: str, timeout_seconds: int = 120) -> None:
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
         self.timeout = timeout_seconds

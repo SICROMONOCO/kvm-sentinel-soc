@@ -421,14 +421,22 @@ check_logs() {
 }
 
 check_reports() {
-  local dir="$REPO_ROOT/vm2-soc/reports" newest epoch now age_h
-  if [[ ! -d "$dir" ]]; then
-    add_row reports SKIP reports "no vm2-soc/reports directory"
-    return
+  local dir="$REPO_ROOT/vm2-soc/reports" remote="$VM2_COMPOSE_DIR/reports"
+  local newest="" epoch now age_h
+  if ssh_reachable vm2; then
+    build_ssh vm2
+    newest="$(timeout 12 "${SSH_ARGV[@]}" \
+      "find $remote -maxdepth 1 -type f \( -name '*.md' -o -name '*.json' \) -printf '%T@ %p\\n' 2>/dev/null | sort -rn | head -1" 2>/dev/null || true)"
   fi
-  newest="$(find "$dir" -maxdepth 1 -type f \( -name '*.md' -o -name '*.json' \) -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 || true)"
+  if [[ -z "$newest" && -d "$dir" ]]; then
+    newest="$(find "$dir" -maxdepth 1 -type f \( -name '*.md' -o -name '*.json' \) -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 || true)"
+  fi
   if [[ -z "$newest" ]]; then
-    add_row reports WARN reports "no AI report generated yet"
+    if [[ ! -d "$dir" ]]; then
+      add_row reports SKIP reports "no vm2-soc/reports directory"
+    else
+      add_row reports WARN reports "no AI report generated yet"
+    fi
     return
   fi
   epoch="${newest%%.*}"

@@ -76,10 +76,10 @@ Ubuntu 22.04.4 LTS (GNU/Linux 5.15.0-105-generic x86_64)
 Last login: Tue Apr  2 08:57:41 2024 from 10.10.0.1
 EOF
 
-# auth/authpriv -> /var/log/auth.log, traditional format (the Ubuntu default
-# template, RSYSLOG_TraditionalFileFormat, already includes the timestamp,
-# hostname and syslogtag prefix the parser relies on).
-RUN cat > /etc/rsyslog.d/49-auth.conf <<'EOF'
+# auth/authpriv -> /var/log/auth.log. The stock 50-default.conf writes the same
+# facility too, which would duplicate every line; keep only our rule.
+RUN rm -f /etc/rsyslog.d/50-default.conf \
+ && cat > /etc/rsyslog.d/49-auth.conf <<'EOF'
 auth,authpriv.*                 -/var/log/auth.log
 EOF
 

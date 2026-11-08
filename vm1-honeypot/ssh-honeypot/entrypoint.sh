@@ -18,8 +18,10 @@ ssh-keygen -A >/dev/null
 # Fake, intentionally weak root password (documented in the README).
 echo 'root:toor' | chpasswd
 
-# The bind mount may be empty on a fresh VM; make sure rsyslog can append.
+# The bind mount may be empty on a fresh VM; rsyslog drops to syslog:adm, so
+# the file must be writable by that account rather than only by root.
 touch "$LOG_FILE"
+chown syslog:adm "$LOG_FILE"
 chmod 0644 "$LOG_FILE"
 
 echo "[honeypot] starting rsyslog (auth -> ${LOG_FILE})"
@@ -30,4 +32,6 @@ rsyslogd
 tail -n0 -F "$LOG_FILE" &
 
 echo "[honeypot] starting sshd on 0.0.0.0:2222 (LogLevel VERBOSE)"
-exec /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config
+# Do not pass -e here: it sends sshd logs straight to stderr and bypasses
+# rsyslog, so /var/log/auth.log stays empty and the SOC pipeline sees nothing.
+exec /usr/sbin/sshd -D -f /etc/ssh/sshd_config
