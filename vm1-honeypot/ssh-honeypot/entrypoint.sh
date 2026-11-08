@@ -18,6 +18,21 @@ ssh-keygen -A >/dev/null
 # Fake, intentionally weak root password (documented in the README).
 echo 'root:toor' | chpasswd
 
+if [ -n "${FLAG_PART1:-}" ]; then
+  install -d -m 0700 /var/backups
+  printf '%s\n' "$FLAG_PART1" > /var/backups/.flag1
+  chmod 0600 /var/backups/.flag1
+fi
+
+if [ -n "${FLAG_PART2:-}" ]; then
+  {
+    echo "# The SOC records every username attempted against this host."
+    echo "# Stage 2: make them record this exact username."
+    echo "flag_part2=${FLAG_PART2}"
+  } >> /root/.bash_history
+  chmod 0600 /root/.bash_history
+fi
+
 # The bind mount may be empty on a fresh VM; rsyslog drops to syslog:adm, so
 # the file must be writable by that account rather than only by root.
 touch "$LOG_FILE"

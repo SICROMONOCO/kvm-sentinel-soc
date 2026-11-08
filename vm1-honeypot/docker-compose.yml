@@ -30,6 +30,9 @@ services:
     image: kvm-sentinel/ssh-honeypot:1.0.0
     container_name: ssh-honeypot
     restart: unless-stopped
+    environment:
+      FLAG_PART1: ${FLAG_PART1:-}
+      FLAG_PART2: ${FLAG_PART2:-}
     ports:
       # guest 2222, never 22: the cloud image's own sshd owns 22 for admin access
       - "2222:2222"
