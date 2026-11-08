@@ -92,11 +92,6 @@ credentials/
 # --- Temporary files ------------------------------------------
 /tmp/
 *.bak
-*.orig
-*.rej
-
-# --- Large binary files (keep repo lean) ----------------------
-*.pdf
 *.zip
 *.tar.gz
 *.tar.xz
