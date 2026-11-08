@@ -1,9 +1,10 @@
-"""Agent Analyste — local LLM threat assessment through Ollama.
+"""Agent Analyste — LLM threat assessment through Ollama or NVIDIA NIM.
 
 Sends the structured incident (plus a handful of raw log lines) to a small
-CPU-only model and asks for a strict JSON verdict. The model is qwen2.5:0.5b by
-default: it fits comfortably in the 5 GiB VM and answers in a few seconds on 4
-vCPUs once warm. Alerts use a hard 120 s cap, sized for CPU-only generation with
+model and asks for a strict JSON verdict. Ollama remains the default: qwen2.5:0.5b
+fits comfortably in the 5 GiB VM and answers in a few seconds on 4 vCPUs once
+warm. NVIDIA NIM can be selected through the OpenAI-compatible
+``/chat/completions`` API. Alerts use a hard timeout, sized for generation with
 the full evidence prompt, so a hung model cannot stall a live demo; the one-off
 cold start is paid by warm_up() at container start.
 
@@ -15,9 +16,9 @@ The LLM is treated as untrusted input:
   * the text is only ever printed escaped and stored in a report - it is never
     used to build a path or a command.
 
-If Ollama is unreachable or answers garbage, the analyst degrades to a
-deterministic heuristic assessment. Losing the model must never lose the
-incident.
+If the configured provider is unreachable or answers garbage, the analyst
+degrades to a deterministic heuristic assessment. Losing the model must never
+lose the incident.
 """
 
 from __future__ import annotations
@@ -105,14 +106,38 @@ def sanitize_text(value: str, limit: int) -> str:
     return cleaned.strip()[:limit]
 
 
+class ModelRequestError(RuntimeError):
+    """The configured model provider could not return a usable answer."""
+
+
 class AgentAnalyste:
-    def __init__(self, ollama_url: str, model: str, timeout_seconds: int = 120) -> None:
+    def __init__(
+        self,
+        ollama_url: str,
+        model: str,
+        timeout_seconds: int = 120,
+        *,
+        provider: str = "ollama",
+        nim_url: str = "https://integrate.api.nvidia.com/v1",
+        nim_api_key: str = "",
+    ) -> None:
+        self.provider = provider.strip().lower()
+        if self.provider not in {"ollama", "nim"}:
+            LOG.warning("unknown LLM_PROVIDER=%r; using ollama", provider)
+            self.provider = "ollama"
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
         self.timeout = timeout_seconds
+        self.nim_url = nim_url.rstrip("/")
+        self.nim_api_key = nim_api_key.strip()
         self.session = requests.Session()
 
     def warm_up(self, timeout_seconds: int = 120) -> bool:
+        if self.provider == "nim":
+            return self._warm_up_nim(timeout_seconds)
+        return self._warm_up_ollama(timeout_seconds)
+
+    def _warm_up_ollama(self, timeout_seconds: int) -> bool:
         payload = {
             "model": self.model,
             "prompt": "ok",
@@ -124,9 +149,42 @@ class AgentAnalyste:
                 f"{self.ollama_url}/api/generate", json=payload, timeout=timeout_seconds
             )
         except requests.RequestException as exc:
-            LOG.warning("model warm-up failed (%s)", exc)
+            LOG.warning("Ollama warm-up failed (%s)", exc)
             return False
         return response.status_code == 200
+
+    def _warm_up_nim(self, timeout_seconds: int) -> bool:
+        if not self.nim_api_key:
+            LOG.warning("NIM warm-up skipped: NIM_API_KEY is empty")
+            return False
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": "Reply with OK."}],
+            "max_tokens": 1,
+            "temperature": 0,
+            "stream": False,
+        }
+        try:
+            response = self.session.post(
+                f"{self.nim_url}/chat/completions",
+                json=payload,
+                headers=self._nim_headers(),
+                timeout=max(1, timeout_seconds),
+            )
+        except requests.RequestException as exc:
+            LOG.warning("NIM warm-up failed (%s)", exc)
+            return False
+        if response.status_code != 200:
+            LOG.warning("NIM warm-up HTTP %s", response.status_code)
+            return False
+        return True
+
+    def _nim_headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self.nim_api_key}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
 
     # ------------------------------------------------------------------ prompt
     def build_prompt(self, alert: Alert, samples: list[str]) -> str:
@@ -150,8 +208,7 @@ class AgentAnalyste:
         )
 
     # ------------------------------------------------------------------- query
-    def analyze(self, alert: Alert, samples: list[str]) -> Analysis:
-        prompt = self.build_prompt(alert, samples)
+    def _query_ollama(self, prompt: str) -> str:
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -171,19 +228,84 @@ class AgentAnalyste:
                 f"{self.ollama_url}/api/generate", json=payload, timeout=self.timeout
             )
         except requests.RequestException as exc:
-            LOG.warning("Ollama unreachable (%s); using heuristic assessment", exc)
-            return self.heuristic(alert, "local LLM unreachable")
+            raise ModelRequestError(f"Ollama unreachable ({exc})") from exc
 
         if response.status_code != 200:
-            LOG.warning("Ollama HTTP %s; using heuristic assessment", response.status_code)
-            return self.heuristic(alert, f"Ollama HTTP {response.status_code}")
+            raise ModelRequestError(f"Ollama HTTP {response.status_code}")
 
         try:
             body = response.json()
-            raw_answer = body.get("response", "")
         except ValueError as exc:
-            LOG.warning("Ollama returned non-JSON envelope (%s); using heuristic", exc)
-            return self.heuristic(alert, "invalid Ollama envelope")
+            raise ModelRequestError("invalid Ollama envelope") from exc
+        raw_answer = body.get("response", "") if isinstance(body, dict) else ""
+        if not isinstance(raw_answer, str) or not raw_answer.strip():
+            raise ModelRequestError("empty Ollama response")
+        return raw_answer
+
+    def _query_nim(self, prompt: str) -> str:
+        if not self.nim_api_key:
+            raise ModelRequestError("NIM_API_KEY is empty")
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "max_tokens": 700,
+            "stream": False,
+        }
+
+        try:
+            response = self.session.post(
+                f"{self.nim_url}/chat/completions",
+                json=payload,
+                headers=self._nim_headers(),
+                timeout=self.timeout,
+            )
+        except requests.RequestException as exc:
+            raise ModelRequestError(f"NIM unreachable ({exc})") from exc
+
+        if response.status_code != 200:
+            raise ModelRequestError(f"NIM HTTP {response.status_code}")
+
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise ModelRequestError("invalid NIM envelope") from exc
+
+        choices = body.get("choices") if isinstance(body, dict) else None
+        if not isinstance(choices, list) or not choices:
+            raise ModelRequestError("NIM response has no choices")
+        first = choices[0] if isinstance(choices[0], dict) else {}
+        message = first.get("message")
+        if not isinstance(message, dict):
+            raise ModelRequestError("NIM response has no message")
+        content = message.get("content")
+        if isinstance(content, list):
+            content = "".join(
+                part.get("text", "")
+                for part in content
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            )
+        if not isinstance(content, str) or not content.strip():
+            raise ModelRequestError("empty NIM response")
+        return content
+
+    def analyze(self, alert: Alert, samples: list[str]) -> Analysis:
+        prompt = self.build_prompt(alert, samples)
+
+        try:
+            raw_answer = (
+                self._query_nim(prompt)
+                if self.provider == "nim"
+                else self._query_ollama(prompt)
+            )
+        except ModelRequestError as exc:
+            reason = str(exc)[:200]
+            LOG.warning("%s; using heuristic assessment", reason)
+            return self.heuristic(alert, reason)
 
         try:
             data = extract_json_object(raw_answer)

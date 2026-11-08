@@ -4,7 +4,7 @@
 Loop (every POLL_INTERVAL_SECONDS):
 
     Loki  ->  Agent Parseur  ->  Agent Detecteur  ->  Agent Analyste  ->  Agent Rapporteur
-                                  (sliding window)     (Ollama, JSON)      (report + webhook)
+                                  (sliding window)     (LLM, JSON)         (report + webhook)
 
 Design notes:
 
@@ -13,9 +13,9 @@ Design notes:
   * The cursor is committed only after a batch has been fully processed, so a
     crash mid-incident replays it instead of losing it (the parser dedupes).
   * Every external dependency can fail without killing the loop: Loki outages
-    back off exponentially, Ollama falls back to a heuristic, the webhook
-    retries then gives up. The heartbeat file keeps the container HEALTHCHECK
-    honest.
+    back off exponentially, the configured LLM provider falls back to a
+    heuristic, the webhook retries then gives up. The heartbeat file keeps the
+    container HEALTHCHECK honest.
 """
 
 from __future__ import annotations
@@ -104,9 +104,19 @@ class Pipeline:
         self.loki_query = env_str("LOKI_QUERY", '{job="ssh-honeypot"}')
         self.poll_interval = max(1, env_int("POLL_INTERVAL_SECONDS", 2))
         self.lookback = max(0, env_int("INITIAL_LOOKBACK_MINUTES", 30))
+        self.llm_provider = env_str("LLM_PROVIDER", "ollama").strip().lower()
+        if self.llm_provider not in {"ollama", "nim"}:
+            LOG.warning("LLM_PROVIDER=%r is unsupported; using ollama", self.llm_provider)
+            self.llm_provider = "ollama"
         self.ollama_url = env_str("OLLAMA_URL", "http://ollama:11434")
         self.ollama_model = env_str("OLLAMA_MODEL", "qwen2.5:0.5b")
         self.ollama_timeout = max(10, env_int("OLLAMA_TIMEOUT_SECONDS", 180))
+        self.nim_url = env_str("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
+        self.nim_model = env_str("NIM_MODEL", "nvidia/nemotron-3.5-bolt-e4b")
+        self.nim_api_key = env_str("NIM_API_KEY", "")
+        self.nim_timeout = max(10, env_int("NIM_TIMEOUT_SECONDS", self.ollama_timeout))
+        self.llm_model = self.nim_model if self.llm_provider == "nim" else self.ollama_model
+        self.llm_timeout = self.nim_timeout if self.llm_provider == "nim" else self.ollama_timeout
         self.threshold = max(1, env_int("BRUTEFORCE_THRESHOLD", 5))
         self.window = max(1, env_int("BRUTEFORCE_WINDOW_SECONDS", 30))
         self.cooldown = max(0, env_int("ALERT_COOLDOWN_SECONDS", 120))
@@ -129,8 +139,11 @@ class Pipeline:
         )
         self.analyst = AgentAnalyste(
             ollama_url=self.ollama_url,
-            model=self.ollama_model,
-            timeout_seconds=self.ollama_timeout,
+            model=self.llm_model,
+            timeout_seconds=self.llm_timeout,
+            provider=self.llm_provider,
+            nim_url=self.nim_url,
+            nim_api_key=self.nim_api_key,
         )
         self.rapporteur = AgentRapporteur(
             reports_dir=self.reports_dir,
@@ -154,7 +167,22 @@ class Pipeline:
             raise SystemExit(2)
 
         LOG.info("loki      : %s  query=%s", self.loki_url, self.loki_query)
-        LOG.info("ollama    : %s  model=%s  timeout=%ss", self.ollama_url, self.ollama_model, self.ollama_timeout)
+        if self.llm_provider == "nim":
+            key_state = "set" if self.nim_api_key else "MISSING"
+            LOG.info(
+                "analyst   : NIM %s  model=%s  timeout=%ss  api_key=%s",
+                self.nim_url,
+                self.llm_model,
+                self.llm_timeout,
+                key_state,
+            )
+        else:
+            LOG.info(
+                "analyst   : Ollama %s  model=%s  timeout=%ss",
+                self.ollama_url,
+                self.llm_model,
+                self.llm_timeout,
+            )
         LOG.info("detection : %s failures / %ss, cooldown %ss", self.threshold, self.window, self.cooldown)
         LOG.info("webhook   : %s", self.webhook_url)
         LOG.info("reports   : %s", self.reports_dir)
@@ -190,10 +218,12 @@ class Pipeline:
     def run(self) -> int:
         self.preflight()
         if self.analyst.warm_up():
-            LOG.info("analyst model %s loaded (alerts answer in ~1-3s)", self.ollama_model)
+            LOG.info("analyst model %s ready", self.llm_model)
         else:
-            LOG.warning("%s not loaded: the first alert will use the heuristic assessment",
-                        self.ollama_model)
+            LOG.warning(
+                "%s not ready: alerts will use the heuristic assessment until it recovers",
+                self.llm_model,
+            )
         backoff = 1.0
         LOG.info("pipeline started (poll %ss)", self.poll_interval)
 

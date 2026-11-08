@@ -72,7 +72,11 @@ class AgentRapporteur:
         mitre = ", ".join(alert.mitre_techniques) or "n/a"
         actions = "\n".join(f"- `{action}`" for action in alert.recommended_actions) or "- none"
         commands = "\n".join(f"    {command}" for command in self.proposed_commands(alert))
-        confidence = "heuristic (LLM unavailable)" if "heuristic" in alert.summary.lower() else "local LLM (Ollama)"
+        confidence = (
+            "heuristic (LLM unavailable)"
+            if "heuristic" in alert.summary.lower()
+            else "LLM assessment (Ollama/NVIDIA NIM)"
+        )
 
         return f"""# SSH Brute-Force Incident — {alert.attacker_ip}
 

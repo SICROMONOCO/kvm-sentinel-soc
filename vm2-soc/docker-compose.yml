@@ -7,6 +7,8 @@ name: soc
 #   ollama      : local CPU inference (qwen2.5:0.5b, ~400 MB resident).
 #   ollama-init : one-shot model pull, so a fresh VM needs no manual step.
 #   agents      : the 4-agent pipeline (parse -> detect -> analyse -> report).
+#                 The analyst uses Ollama by default; set LLM_PROVIDER=nim to
+#                 use an OpenAI-compatible NVIDIA NIM endpoint instead.
 #
 # Memory budget of this VM: 4 GiB.
 #   loki ~250 MB, grafana ~150 MB, ollama+0.5b model ~900 MB, agents ~120 MB,
@@ -139,6 +141,11 @@ services:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
       OLLAMA_TIMEOUT_SECONDS: "120"
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      NIM_BASE_URL: "${NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}"
+      NIM_MODEL: ${NIM_MODEL:-nvidia/nemotron-3.5-bolt-e4b}
+      NIM_API_KEY: ${NIM_API_KEY:-}
+      NIM_TIMEOUT_SECONDS: "120"
       BRUTEFORCE_THRESHOLD: "5"
       BRUTEFORCE_WINDOW_SECONDS: "30"
       ALERT_COOLDOWN_SECONDS: "120"
