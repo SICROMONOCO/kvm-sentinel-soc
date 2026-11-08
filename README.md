@@ -110,6 +110,7 @@ Troubleshooting:
 | [Ubuntu/Debian](docs/02-INSTALL-UBUNTU-DEBIAN.md) | Manual setup for Debian-based distros |
 | [Windows/WSL2](docs/03-INSTALL-WINDOWS-WSL2.md) | Nested KVM on Windows |
 | [Classroom Live-Fire](docs/04-CLASSROOM-LIVE-FIRE.md) | Multi-student attack scenario |
+| [CTF Challenge](docs/CTF.md) | Three-stage flag chain across the honeypot and SOC |
 | [Architecture](docs/ARCHITECTURE.md) | Deep dive into design decisions |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
 
