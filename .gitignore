@@ -95,6 +95,9 @@ credentials/
 *.orig
 *.rej
 
+# Local operator notes contain live lab credentials.
+WORKSETUP.md
+
 # --- Large binary files (keep repo lean) ----------------------
 *.pdf
 *.zip
