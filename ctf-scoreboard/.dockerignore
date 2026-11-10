@@ -1,0 +1,54 @@
+# =============================================================================
+# CTF Scoreboard — Docker build context exclusions
+#
+# Keep the build small and prevent secrets/runtime state from reaching the
+# image. Do not exclude requirements.txt, rxconfig.py, Caddyfile, assets/, or
+# ctf_scoreboard/: the build and runtime need them.
+# =============================================================================
+
+# Version control and editor noise
+.git
+.gitignore
+.idea
+.vscode
+*.code-workspace
+
+# Secrets — never copy .env into an image layer
+.env
+.env.*
+!.env.example
+
+# Local runtime databases and their SQLite journals
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+
+# Python caches and local virtualenvs (the image builds its own .venv)
+__pycache__
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Reflex build output and runtime state
+.web/
+.states/
+*.log
+
+# Not needed in the image
+tests/
+docker-compose.yml
+README.md
+CHANGELOG.md
+docs/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

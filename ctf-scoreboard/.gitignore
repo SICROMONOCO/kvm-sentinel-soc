@@ -1,0 +1,19 @@
+# Local secrets and runtime state for the standalone scoreboard.
+.env
+.env.local
+
+# SQLite databases created by local runs, including WAL sidecars.
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+
+# Reflex build output and per-session backend state.
+.web/
+.states/
+
+# Python caches.
+__pycache__/
+*.py[cod]
+.venv/
+venv/

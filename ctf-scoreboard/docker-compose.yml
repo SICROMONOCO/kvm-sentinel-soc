@@ -1,0 +1,75 @@
+name: ctf-scoreboard
+
+# Standalone CTF scoreboard for the host, outside the VM1/VM2 lab stacks.
+#
+# Isolation is deliberate:
+#   * scoreboard-net is a private bridge created for this project only.
+#   * There is no external network, no network_mode: host, and no attachment to
+#     virbr0, virbr1, honeypot-net, or soc-net.
+#   * Exactly one host port is published (0.0.0.0:${SCOREBOARD_PORT}:8080).
+#     That is host-only LAN exposure: it lets students browse the scoreboard on
+#     the host's LAN interface without putting the container on any lab network.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  scoreboard:
+    build:
+      context: .
+    image: kvm-sentinel/ctf-scoreboard:1.0.0
+    container_name: ctf-scoreboard
+    restart: unless-stopped
+    init: true
+    ports:
+      # Host-only LAN exposure. The container port is always 8080; only the
+      # host side is configurable with SCOREBOARD_PORT.
+      - "0.0.0.0:${SCOREBOARD_PORT:-8080}:8080"
+    environment:
+      # Flags are backend-only secrets: they are never placed in Reflex state
+      # or shipped to the browser.
+      FLAG_PART1: ${FLAG_PART1:-}
+      FLAG_PART2: ${FLAG_PART2:-}
+      FLAG_PART3: ${FLAG_PART3:-}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      SESSION_START: ${SESSION_START:-}
+      SCOREBOARD_PORT: "8080"
+      CTF_DB_PATH: /data/scoreboard.db
+      GRANIAN_WORKERS: "1"
+      TZ: UTC
+    volumes:
+      # SQLite survives container recreation in this named volume.
+      - scoreboard-data:/data
+    networks:
+      - scoreboard-net
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+
+volumes:
+  scoreboard-data:
+    # Docker name is ctf-scoreboard_scoreboard-data (project prefix + key).
+    driver: local
+
+networks:
+  scoreboard-net:
+    driver: bridge
+    # Dedicated bridge only. No external: true and no lab networks.

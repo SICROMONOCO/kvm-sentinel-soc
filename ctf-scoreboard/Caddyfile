@@ -1,0 +1,80 @@
+# Caddyfile — the only process listening on the published port.
+#
+#   * /healthz and the Reflex backend routes are handled before the static
+#     catch-all, so they can never be shadowed by file_server.
+#   * Everything else is the exported Reflex frontend in /srv.
+#   * Security headers are applied to every response, including 404s.
+#   * The admin API is disabled: Caddy is started by the container, not managed
+#     remotely.
+{
+	admin off
+}
+
+:{$PORT} {
+	# `route` preserves the written order instead of Caddy's directive sorting,
+	# which guarantees /healthz and backend routes win over the static handler.
+	route {
+		header {
+			-Server
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "no-referrer"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			Cross-Origin-Opener-Policy "same-origin"
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		}
+
+		encode gzip
+
+		# Readiness endpoint: proxied to Reflex so Caddy reports healthy only
+		# after the backend can accept event connections.
+		handle /healthz {
+			rewrite * /_health
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		# Reflex backend: websocket event channel, ping/health, and uploads.
+		handle /_event {
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		handle /_event/* {
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		handle /ping {
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		handle /_health {
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		handle /_upload {
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		handle /_upload/* {
+			reverse_proxy 127.0.0.1:8000
+		}
+
+		# The exported Reflex env asset bakes in the build-time host and port.
+		# Serve a same-origin replacement so host-port remapping keeps working.
+		handle /assets/reflex-env-*.js {
+			header Cache-Control "no-store"
+			rewrite * /reflex-env.js
+			root * /srv
+			file_server
+		}
+
+		# Exported Reflex frontend. try_files supports directory indexes and a
+		# static 404 page; precompressed variants are used when present.
+		handle {
+			root * /srv
+			try_files {path} {path}/ /404.html
+			file_server {
+				precompressed br zstd gzip
+			}
+		}
+	}
+}
