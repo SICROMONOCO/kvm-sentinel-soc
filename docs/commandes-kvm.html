@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commandes d’installation de KVM — Windows 11 et Linux</title>
+<style>
+:root{
+  --bg:#f6f8fa; --surface:#ffffff; --text:#1b1f24; --muted:#59636e; --border:#d0d7de;
+  --accent:#1f4e79; --accent-soft:#e6eef7; --code-bg:#0f1720; --code-text:#e8eef5;
+  --danger:#b71c1c; --danger-soft:#fdecec; --ok:#2e7d32;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1117; --surface:#161b22; --text:#e6edf3; --muted:#9aa5b1; --border:#30363d;
+    --accent:#6fb1f0; --accent-soft:#12263a; --code-bg:#010409; --code-text:#e6edf3;
+    --danger:#ff8a80; --danger-soft:#3a1517; --ok:#6fcf7a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1117; --surface:#161b22; --text:#e6edf3; --muted:#9aa5b1; --border:#30363d;
+  --accent:#6fb1f0; --accent-soft:#12263a; --code-bg:#010409; --code-text:#e6edf3;
+  --danger:#ff8a80; --danger-soft:#3a1517; --ok:#6fcf7a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:17px;line-height:1.6}
+header{background:var(--surface);border-bottom:1px solid var(--border)}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+header .wrap{padding-top:28px;padding-bottom:20px}
+h1{margin:0 0 6px;font-size:1.7rem;color:var(--accent)}
+header p{margin:0;color:var(--muted)}
+.tabs{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
+.tab{font:inherit;font-weight:600;padding:10px 18px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--text)}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (prefers-color-scheme: dark){ .tab[aria-selected="true"]{color:#0d1117} }
+main{padding:24px 0 60px}
+.banner{border:1px solid var(--danger);background:var(--danger-soft);color:var(--danger);
+  border-radius:10px;padding:12px 16px;font-weight:600;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:18px 20px;margin-bottom:18px}
+.card h2{margin:0 0 4px;font-size:1.2rem;color:var(--accent)}
+.card h2 .n{display:inline-block;min-width:1.9em;height:1.9em;line-height:1.9em;text-align:center;
+  border-radius:50%;background:var(--accent-soft);margin-right:8px;font-size:.95rem}
+.note{color:var(--muted);margin:4px 0 12px}
+.label{display:flex;align-items:center;gap:8px;margin:14px 0 6px;font-weight:600;font-size:.95rem}
+.chip{font-size:.78rem;font-weight:600;padding:2px 9px;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent);border:1px solid var(--border)}
+.cmd{display:flex;align-items:stretch;background:var(--code-bg);border-radius:10px;overflow:hidden;
+  border:1px solid var(--border);margin:0 0 8px}
+.cmd pre{margin:0;padding:12px 14px;flex:1;min-width:0;overflow-x:auto;color:var(--code-text);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  font-size:.92rem;line-height:1.5;white-space:pre}
+.copy{flex:none;width:96px;border:0;border-left:1px solid #2b3642;background:#1c2733;color:#cfe3f7;
+  font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
+.copy:hover{background:#25364a}
+.copy.done{background:#1f4d2a;color:#b9f3c3}
+details{border:1px solid var(--border);border-radius:10px;margin-top:14px;background:var(--bg)}
+summary{cursor:pointer;padding:10px 14px;font-weight:600;color:var(--danger)}
+.errs{padding:4px 14px 14px}
+.err{border-left:4px solid var(--danger);padding:2px 0 2px 12px;margin:14px 0}
+.err h4{margin:0 0 4px;font-size:1rem}
+.err p{margin:0 0 8px;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.seg button{font:inherit;font-size:.9rem;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+footer{color:var(--muted);font-size:.9rem;padding-bottom:40px}
+@media (max-width:560px){ .copy{width:72px} body{font-size:16px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Installation de KVM : commandes à copier</h1>
+    <p>Chaque commande a son bouton « Copier ». Exécutez les étapes dans l’ordre.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-os="windows" aria-selected="true">Windows 11</button>
+      <button class="tab" role="tab" data-os="linux" aria-selected="false">Linux</button>
+    </div>
+  </div>
+</header>
+<main><div class="wrap" id="app"></div></main>
+<div class="wrap"><footer>Guide complémentaire du document LaTeX « Guide d’installation de KVM ».</footer></div>
+
+<script>
+const R = String.raw;
+
+const DATA = {
+windows: {
+  banner: "Windows 11 uniquement. Windows 10 ne prend pas en charge la virtualisation imbriquée (nested virtualization) : KVM n’y fonctionnera pas.",
+  steps: [
+    { title: "Vérifier la virtualisation",
+      note: "Lire la ligne « Virtualization Enabled In Firmware » : elle doit indiquer Yes. Sinon, activer VT-x / AMD-V (SVM) dans le BIOS/UEFI.",
+      blocks: [ { shell: "PowerShell", cmd: R`systeminfo | findstr /i "Hyper-V"` } ],
+      errors: [] },
+
+    { title: "Activer WSL2 et installer Ubuntu",
+      note: "À lancer dans PowerShell en administrateur. Redémarrer Windows ensuite, puis créer le nom d’utilisateur et le mot de passe Linux au premier lancement.",
+      blocks: [
+        { label: "Installer WSL2 avec Ubuntu 24.04", shell: "PowerShell (administrateur)", cmd: R`wsl --install -d Ubuntu-24.04` },
+        { label: "Vérifier : la colonne VERSION doit afficher 2", shell: "PowerShell", cmd: R`wsl --list --verbose` } ],
+      errors: [
+        { title: "0x80370102 : la machine virtuelle n’a pas pu démarrer",
+          cause: "Virtualisation désactivée dans le BIOS, ou plateforme Hyper-V inactive. Activer VT-x/AMD-V dans le BIOS, puis :",
+          fix: [ R`bcdedit /set hypervisorlaunchtype auto` ] },
+        { title: "0x8007019e : le sous-système Windows pour Linux n’est pas activé",
+          cause: "Fonctionnalités Windows manquantes. Les activer, puis redémarrer :",
+          fix: [ R`dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart`,
+                 R`dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart` ] },
+        { title: "La distribution tourne en WSL 1 au lieu de WSL 2",
+          cause: "Version par défaut non définie.",
+          fix: [ R`wsl --set-default-version 2`, R`wsl --set-version Ubuntu-24.04 2` ] }
+      ] },
+
+    { title: "Activer la virtualisation imbriquée",
+      note: "Crée le fichier .wslconfig dans votre dossier utilisateur. Adapter memory et processors à votre machine, puis redémarrer WSL.",
+      blocks: [
+        { label: "Créer .wslconfig", shell: "PowerShell", cmd: R`@"
+[wsl2]
+memory=8GB
+processors=4
+nestedVirtualization=true
+"@ | Set-Content -Path "$env:USERPROFILE\.wslconfig"` },
+        { label: "Appliquer (obligatoire)", shell: "PowerShell", cmd: R`wsl --shutdown` } ],
+      errors: [
+        { title: "L’option est ignorée et /dev/kvm reste absent",
+          cause: "WSL non à jour, virtualisation désactivée dans le BIOS, ou processeur sans support de l’imbrication. Mettre à jour WSL et redémarrer :",
+          fix: [ R`wsl --update`, R`wsl --shutdown` ] }
+      ] },
+
+    { title: "Vérifier systemd dans Ubuntu (WSL)",
+      note: "libvirt a besoin de systemd. Il est souvent déjà actif : tester d’abord. Si la commande échoue, l’activer.",
+      blocks: [
+        { label: "Tester", shell: "Ubuntu (WSL)", cmd: R`systemctl is-system-running` },
+        { label: "Activer si besoin", shell: "Ubuntu (WSL)", cmd: R`printf '[boot]\nsystemd=true\n' | sudo tee /etc/wsl.conf` },
+        { label: "Puis redémarrer WSL, et rouvrir Ubuntu", shell: "PowerShell", cmd: R`wsl --shutdown` } ],
+      errors: [] },
+
+    { title: "Installer KVM, QEMU et libvirt",
+      note: "Dans le terminal Ubuntu. Fermer puis rouvrir le terminal après la dernière commande.",
+      blocks: [
+        { label: "Mettre à jour", shell: "Ubuntu (WSL)", cmd: R`sudo apt update && sudo apt upgrade -y` },
+        { label: "Installer les paquets", shell: "Ubuntu (WSL)", cmd: R`sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst cpu-checker` },
+        { label: "Ajouter l’utilisateur aux groupes", shell: "Ubuntu (WSL)", cmd: R`sudo usermod -aG kvm,libvirt $USER` } ],
+      errors: [
+        { title: "Unable to locate package",
+          cause: "Index des paquets non à jour.",
+          fix: [ R`sudo apt update` ] }
+      ] },
+
+    { title: "Démarrer libvirt et vérifier KVM",
+      note: "kvm-ok doit répondre « KVM acceleration can be used ».",
+      blocks: [
+        { label: "Démarrer le service", shell: "Ubuntu (WSL)", cmd: R`sudo systemctl enable --now libvirtd` },
+        { label: "Vérifier KVM", shell: "Ubuntu (WSL)", cmd: R`kvm-ok` },
+        { label: "Vérifier le périphérique", shell: "Ubuntu (WSL)", cmd: R`ls -l /dev/kvm` },
+        { label: "Lister les VM et les réseaux", shell: "Ubuntu (WSL)", cmd: R`virsh list --all
+virsh net-list --all` } ],
+      errors: [
+        { title: "/dev/kvm n’existe pas (KVM acceleration can NOT be used)",
+          cause: "Imbrication non active. Reprendre l’étape 3, puis mettre à jour WSL :",
+          fix: [ R`wsl --update`, R`wsl --shutdown` ] },
+        { title: "Permission denied sur libvirt-sock ou sur /dev/kvm",
+          cause: "Utilisateur absent des groupes, ou service arrêté. Ajouter l’utilisateur, se reconnecter, démarrer le service :",
+          fix: [ R`sudo usermod -aG libvirt,kvm $USER`, R`sudo systemctl start libvirtd` ] },
+        { title: "Network 'default' is not active",
+          cause: "Réseau NAT libvirt non démarré.",
+          fix: [ R`sudo virsh net-start default`, R`sudo virsh net-autostart default` ] }
+      ] },
+
+    { title: "Créer une première machine virtuelle",
+      note: "Placer l’image ISO dans /var/lib/libvirt/images/ (système de fichiers Linux de WSL, pas /mnt/c). Adapter le nom de l’ISO.",
+      blocks: [
+        { label: "Préparer le dossier et le disque", shell: "Ubuntu (WSL)", cmd: R`sudo mkdir -p /var/lib/libvirt/images
+sudo qemu-img create -f qcow2 /var/lib/libvirt/images/vm-test.qcow2 20G` },
+        { label: "Créer la VM (console texte)", shell: "Ubuntu (WSL)", cmd: R`sudo virt-install \
+  --name vm-test \
+  --memory 2048 --vcpus 2 \
+  --disk path=/var/lib/libvirt/images/vm-test.qcow2,format=qcow2,bus=virtio \
+  --cdrom /var/lib/libvirt/images/ubuntu-24.04-live-server-amd64.iso \
+  --network network=default,model=virtio \
+  --os-variant ubuntu24.04 \
+  --graphics none \
+  --console pty,target_type=serial` } ],
+      errors: [
+        { title: "Could not access KVM kernel module",
+          cause: "/dev/kvm absent ou inaccessible. Reprendre l’étape 6 (groupe kvm, imbrication active).", fix: [] },
+        { title: "Permission denied sur l’ISO ou le disque",
+          cause: "Fichiers hors de /var/lib/libvirt/images/ ou sur un disque Windows monté (/mnt/c). Les déplacer dans le système de fichiers Linux.", fix: [] },
+        { title: "VM très lente",
+          cause: "Virtualisation imbriquée (deux couches). Réduire le nombre de VM simultanées, augmenter memory et processors dans .wslconfig, utiliser virtio.", fix: [] }
+      ] },
+
+    { title: "Commandes virsh courantes",
+      note: "Remplacer vm-test par le nom de la VM.",
+      blocks: [
+        { label: "Lister toutes les VM", cmd: R`virsh list --all` },
+        { label: "Démarrer", cmd: R`virsh start vm-test` },
+        { label: "Arrêt propre", cmd: R`virsh shutdown vm-test` },
+        { label: "Arrêt forcé", cmd: R`virsh destroy vm-test` },
+        { label: "Console série (sortie : Ctrl+])", cmd: R`virsh console vm-test` },
+        { label: "Adresse IP de la VM", cmd: R`virsh domifaddr vm-test` },
+        { label: "Créer un instantané", cmd: R`virsh snapshot-create-as vm-test snap1` },
+        { label: "Revenir à un instantané", cmd: R`virsh snapshot-revert vm-test snap1` },
+        { label: "Démarrage automatique", cmd: R`virsh autostart vm-test` },
+        { label: "Supprimer la VM et ses disques", cmd: R`virsh undefine vm-test --remove-all-storage` } ],
+      errors: [] }
+  ]
+},
+
+linux: {
+  banner: null,
+  steps: [
+    { title: "Vérifier la prise en charge de KVM",
+      note: "Un résultat supérieur à 0 indique que le processeur supporte la virtualisation matérielle.",
+      blocks: [
+        { shell: "Terminal", cmd: R`egrep -c '(vmx|svm)' /proc/cpuinfo` },
+        { shell: "Terminal", cmd: R`lscpu | grep -i virtualization` } ],
+      errors: [
+        { title: "Résultat 0",
+          cause: "Virtualisation désactivée dans le BIOS/UEFI : l’activer (VT-x ou AMD-V). Si la machine est elle-même une VM, activer l’imbrication dans l’hyperviseur parent.", fix: [] }
+      ] },
+
+    { title: "Installer les paquets selon la distribution",
+      note: "Choisir la famille de distribution. Le principe est identique : QEMU/KVM, libvirt, virsh, virt-install et dnsmasq.",
+      variants: {
+        "Debian / Ubuntu / Mint": [ R`sudo apt update && sudo apt upgrade -y`, R`sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst virt-manager cpu-checker ovmf` ],
+        "Fedora / RHEL": [ R`sudo dnf install -y @virtualization` ],
+        "Arch / Manjaro": [ R`sudo pacman -S --needed qemu-full libvirt virt-manager dnsmasq edk2-ovmf` ],
+        "openSUSE": [ R`sudo zypper install -t pattern kvm_server kvm_tools` ],
+        "NixOS": [ R`# À ajouter dans /etc/nixos/configuration.nix (remplacer utilisateur)
+virtualisation.libvirtd.enable = true;
+programs.virt-manager.enable = true;
+users.users.utilisateur.extraGroups = [ "libvirtd" "kvm" ];`, R`sudo nixos-rebuild switch` ]
+      },
+      errors: [
+        { title: "Unable to locate package (Debian/Ubuntu)",
+          cause: "Index non à jour. Sur certaines versions, qemu-kvm est un paquet virtuel : installer qemu-system-x86.",
+          fix: [ R`sudo apt update`, R`sudo apt install -y qemu-system-x86` ] },
+        { title: "Could not get lock /var/lib/dpkg/lock",
+          cause: "Un autre gestionnaire de paquets est en cours d’exécution. Attendre la fin de l’opération, puis relancer la commande.", fix: [] },
+        { title: "Failed to start network default (Arch)",
+          cause: "dnsmasq absent.",
+          fix: [ R`sudo pacman -S dnsmasq`, R`sudo virsh net-start default` ] },
+        { title: "Groupe libvirtd introuvable (NixOS)",
+          cause: "Configuration pas encore appliquée.",
+          fix: [ R`sudo nixos-rebuild switch` ] }
+      ] },
+
+    { title: "Démarrer libvirt et configurer les groupes",
+      note: "Le groupe s’appelle libvirt (Debian, Ubuntu, Fedora, Arch) ou libvirtd (NixOS, déjà ajouté à l’étape précédente). Se déconnecter puis se reconnecter après l’ajout aux groupes.",
+      blocks: [
+        { label: "Démarrer et activer le service", shell: "Terminal", cmd: R`sudo systemctl enable --now libvirtd` },
+        { label: "Ajouter l’utilisateur aux groupes", shell: "Terminal", cmd: R`sudo usermod -aG libvirt,kvm $USER` },
+        { label: "Prendre en compte le groupe dans le terminal courant", shell: "Terminal", cmd: R`newgrp libvirt` } ],
+      errors: [
+        { title: "Failed to connect socket to libvirt-sock",
+          cause: "Service arrêté ou utilisateur absent du groupe.",
+          fix: [ R`sudo systemctl start libvirtd` ] },
+        { title: "virsh ne voit pas les VM créées avec sudo",
+          cause: "Deux connexions différentes (qemu:///session et qemu:///system). Utiliser toujours la connexion système :",
+          fix: [ R`echo 'export LIBVIRT_DEFAULT_URI=qemu:///system' >> ~/.bashrc` ] }
+      ] },
+
+    { title: "Vérifier l’installation",
+      note: "kvm-ok n’existe que sur Debian/Ubuntu. Sur les autres distributions, utiliser virt-host-validate. lsmod doit afficher kvm_intel ou kvm_amd.",
+      blocks: [
+        { label: "Debian / Ubuntu uniquement", shell: "Terminal", cmd: R`kvm-ok` },
+        { label: "Modules et périphérique", shell: "Terminal", cmd: R`lsmod | grep kvm
+ls -l /dev/kvm` },
+        { label: "Contrôle complet de la configuration", shell: "Terminal", cmd: R`virt-host-validate` },
+        { label: "Réseaux et pools de stockage", shell: "Terminal", cmd: R`virsh net-list --all
+virsh pool-list --all` } ],
+      errors: [
+        { title: "KVM acceleration can NOT be used",
+          cause: "Virtualisation désactivée dans le BIOS, ou module non chargé. Charger le module du bon constructeur :",
+          fix: [ R`sudo modprobe kvm_intel`, R`sudo modprobe kvm_amd` ] },
+        { title: "Network 'default' is not active",
+          cause: "Réseau NAT libvirt non démarré.",
+          fix: [ R`sudo virsh net-start default`, R`sudo virsh net-autostart default` ] }
+      ] },
+
+    { title: "Créer une première machine virtuelle",
+      note: "Placer l’image ISO dans /var/lib/libvirt/images/ (sinon AppArmor/SELinux peut bloquer l’accès). Adapter le nom de l’ISO.",
+      blocks: [
+        { label: "Préparer le dossier et le disque", shell: "Terminal", cmd: R`sudo mkdir -p /var/lib/libvirt/images
+sudo qemu-img create -f qcow2 /var/lib/libvirt/images/vm-test.qcow2 20G` },
+        { label: "Créer la VM (console graphique SPICE)", shell: "Terminal", cmd: R`sudo virt-install \
+  --name vm-test \
+  --memory 2048 --vcpus 2 \
+  --disk path=/var/lib/libvirt/images/vm-test.qcow2,format=qcow2,bus=virtio \
+  --cdrom /var/lib/libvirt/images/ubuntu-24.04-live-server-amd64.iso \
+  --network network=default,model=virtio \
+  --os-variant ubuntu24.04 \
+  --graphics spice` } ],
+      errors: [
+        { title: "Permission denied sur l’ISO",
+          cause: "L’ISO est dans le dossier personnel, inaccessible à libvirt-qemu. La copier dans /var/lib/libvirt/images/.", fix: [] },
+        { title: "Unknown OS name (--os-variant)",
+          cause: "Base osinfo trop ancienne. Lister les variantes, ou utiliser --os-variant generic :",
+          fix: [ R`virt-install --osinfo list` ] },
+        { title: "Domain already exists",
+          cause: "Une VM du même nom existe. La supprimer ou choisir un autre nom :",
+          fix: [ R`virsh undefine vm-test --remove-all-storage` ] }
+      ] },
+
+    { title: "Commandes virsh courantes",
+      note: "Remplacer vm-test par le nom de la VM.",
+      blocks: [
+        { label: "Lister toutes les VM", cmd: R`virsh list --all` },
+        { label: "Démarrer", cmd: R`virsh start vm-test` },
+        { label: "Arrêt propre", cmd: R`virsh shutdown vm-test` },
+        { label: "Arrêt forcé", cmd: R`virsh destroy vm-test` },
+        { label: "Console série (sortie : Ctrl+])", cmd: R`virsh console vm-test` },
+        { label: "Adresse IP de la VM", cmd: R`virsh domifaddr vm-test` },
+        { label: "Créer un instantané", cmd: R`virsh snapshot-create-as vm-test snap1` },
+        { label: "Revenir à un instantané", cmd: R`virsh snapshot-revert vm-test snap1` },
+        { label: "Démarrage automatique", cmd: R`virsh autostart vm-test` },
+        { label: "Supprimer la VM et ses disques", cmd: R`virsh undefine vm-test --remove-all-storage` } ],
+      errors: [] }
+  ]
+}
+};
+
+function copyText(text, btn){
+  const done = () => {
+    btn.textContent = "Copié ✓"; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = "Copier"; btn.classList.remove("done"); }, 1600);
+  };
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch(e) { btn.textContent = "Échec"; }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done, fallback);
+  } else { fallback(); }
+}
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function cmdRow(cmd){
+  const row = el("div", "cmd");
+  const pre = el("pre", null, cmd);
+  const btn = el("button", "copy", "Copier");
+  btn.type = "button";
+  btn.setAttribute("aria-label", "Copier la commande");
+  btn.addEventListener("click", () => copyText(cmd, btn));
+  row.append(pre, btn);
+  return row;
+}
+
+function blockView(b){
+  const frag = document.createDocumentFragment();
+  if (b.label || b.shell) {
+    const l = el("div", "label");
+    if (b.label) l.append(el("span", null, b.label));
+    if (b.shell) l.append(el("span", "chip", b.shell));
+    frag.append(l);
+  }
+  frag.append(cmdRow(b.cmd));
+  return frag;
+}
+
+function stepView(step, i){
+  const card = el("section", "card");
+  const h = el("h2");
+  h.append(el("span", "n", String(i + 1)), document.createTextNode(step.title));
+  card.append(h);
+  if (step.note) card.append(el("p", "note", step.note));
+
+  if (step.variants) {
+    const names = Object.keys(step.variants);
+    const seg = el("div", "seg");
+    const holder = el("div");
+    const show = (name) => {
+      holder.replaceChildren(...step.variants[name].map(cmdRow));
+      [...seg.children].forEach(b => b.setAttribute("aria-pressed", String(b.textContent === name)));
+    };
+    names.forEach(n => {
+      const b = el("button", null, n); b.type = "button";
+      b.addEventListener("click", () => show(n));
+      seg.append(b);
+    });
+    card.append(seg, holder);
+    show(names[0]);
+  }
+  (step.blocks || []).forEach(b => card.append(blockView(b)));
+
+  if (step.errors && step.errors.length) {
+    const d = el("details");
+    d.append(el("summary", null, "Erreurs et solutions (" + step.errors.length + ")"));
+    const box = el("div", "errs");
+    step.errors.forEach(e => {
+      const w = el("div", "err");
+      w.append(el("h4", null, e.title), el("p", null, e.cause));
+      (e.fix || []).forEach(c => w.append(cmdRow(c)));
+      box.append(w);
+    });
+    d.append(box);
+    card.append(d);
+  }
+  return card;
+}
+
+const app = document.getElementById("app");
+function render(os){
+  const d = DATA[os];
+  app.replaceChildren();
+  if (d.banner) app.append(el("div", "banner", d.banner));
+  d.steps.forEach((s, i) => app.append(stepView(s, i)));
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.os === os)));
+  try { history.replaceState(null, "", "#" + os); } catch(e) {}
+}
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { render(t.dataset.os); window.scrollTo(0, 0); }));
+render(location.hash === "#linux" ? "linux" : "windows");
+</script>
+</body>
+</html>
